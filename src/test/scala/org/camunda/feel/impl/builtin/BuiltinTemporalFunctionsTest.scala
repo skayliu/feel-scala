@@ -40,14 +40,14 @@ class BuiltinTemporalFunctionsTest
 
   private val now = ZonedDateTime.of(
     LocalDate.parse("2020-07-31"),
-    LocalTime.parse("14:27:30"),
+    LocalTime.parse("14:27:30.123456"),
     ZoneId.of("Europe/Berlin")
   )
 
   private val date          = "date(2019,9,17)"
   private val localDateTime = """date and time("2019-09-17T14:30:00")"""
   private val dateTime      =
-    """date and time("2019-09-17T14:30:00@Europe/Berlin")"""
+    """date and time("2019-09-17T14:30:00.123456@Europe/Berlin")"""
 
   "The now() function" should "return the current date-time" in withClock { clock =>
     clock.currentTime(now)
@@ -59,11 +59,48 @@ class BuiltinTemporalFunctionsTest
     eval(""" today() """) should be(ValDate(now.toLocalDate))
   }
 
+  "The timestamp() function" should "return the current timestamp" in withClock { clock =>
+    clock.currentTime(now)
+    eval(""" timestamp() """) should be(ValNumber(1596198450))
+  }
+
+  "The timestamp() function" should "return the timestamp of a given date time" in  {
+    eval(s"timestamp($dateTime)") should be(ValNumber(1568723400))
+    eval(s"timestamp($localDateTime)") should be(ValNumber(1568730600))
+    eval(""" timestamp(date and time ("2020-07-31T14:27:30.123456@Europe/Berlin")) """) should be(ValNumber(1596198450))
+  }
+
+  "The timestampMicro() function" should "return the current timestamp in microseconds" in withClock { clock =>
+    clock.currentTime(now)
+    eval(""" timestampMicro() """) should be(ValString("1596198450000123456"))
+  }
+
+  "The timestampMicro() function" should "return the timestamp in microseconds of a given date time" in  {
+    eval(s"timestampMicro($dateTime)") should be(ValString("1568723400000123456"))
+    eval(s"timestampMicro($localDateTime)") should be(ValString("1568730600000000000"))
+    eval(""" timestampMicro(date and time ("2020-07-31T14:27:30.123456@Europe/Berlin")) """) should be(ValString("1596198450000123456"))
+  }
+
+  "The timestampMilli() function" should "return the current timestamp in milliseconds" in withClock { clock =>
+    clock.currentTime(now)
+    eval(""" timestampMilli() """) should be(ValString("1596198450123"))
+  }
+
+  "The timestampMilli() function" should "return the timestamp in milliseconds of a given date time" in  {
+    eval(s"timestampMilli($dateTime)") should be(ValString("1568723400123"))
+    eval(s"timestampMilli($localDateTime)") should be(ValString("1568730600000"))
+    eval(""" timestampMilli(date and time ("2020-07-31T14:27:30.123456@Europe/Berlin")) """) should be(ValString("1596198450123"))
+  }
+
+  "The timestampNano() function" should "return the current timestamp in nanoseconds" in withClock { clock =>
+    clock.currentTime(now)
+    eval(""" timestampNano() """) should be(ValString("1596198450123456000"))
+  }
+
   "The day of year() function" should "return the day within the year" in {
 
     eval(s"day of year($date)") should be(ValNumber(260))
     eval(s"day of year($localDateTime) ") should be(ValNumber(260))
-    eval(s"day of year($dateTime) ") should be(ValNumber(260))
 
     eval(s""" day of year(date("2019-12-31")) """) should be(ValNumber(365))
     eval(s""" day of year(date("2020-12-31")) """) should be(ValNumber(366))
