@@ -18,26 +18,24 @@ package org.camunda.feel.impl.builtin
 
 import org.camunda.feel.{Date, FeelEngineClock}
 import org.camunda.feel.impl.builtin.BuiltinFunction.builtinFunction
-import org.camunda.feel.syntaxtree.{
-  Val,
-  ValDate,
-  ValDateTime,
-  ValFunction,
-  ValLocalDateTime,
-  ValNumber,
-  ValString
-}
+import org.camunda.feel.syntaxtree.{Val, ValContext, ValDate, ValDateTime, ValFunction, ValLocalDateTime, ValNull, ValNumber, ValString}
 
+import java.time.ZoneOffset
 import java.time.format.TextStyle
 import java.time.temporal.TemporalAdjusters
 import java.time.temporal.WeekFields
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 class TemporalBuiltinFunctions(clock: FeelEngineClock) {
 
   def functions = Map(
     "now"               -> List(nowFunction),
     "today"             -> List(todayFunction),
+    "timestamp"         -> List(timestampFunction, timestampFunction2),
+    "timestampMicro"    -> List(timestampMicroFunction, timestampMicroFunction2),
+    "timestampMilli"    -> List(timestampMilliFunction, timestampMilliFunction2),
+    "timestampNano"     -> List(timestampNanoFunction, timestampNanoFunction2),
     "day of year"       -> List(dateTimeFunction(getDayOfYear)),
     "day of week"       -> List(dateTimeFunction(getDayOfWeek)),
     "month of year"     -> List(dateTimeFunction(getMonthOfYear)),
@@ -58,6 +56,97 @@ class TemporalBuiltinFunctions(clock: FeelEngineClock) {
     invoke = { case _ =>
       val today = clock.getCurrentTime.toLocalDate
       ValDate(today)
+    }
+  )
+
+  private def timestampFunction = builtinFunction(
+    params = List.empty,
+    invoke = { case _ =>
+        val timestamp = clock.getCurrentTime.toEpochSecond
+        ValNumber(timestamp)
+    }
+  )
+
+  private def timestampFunction2 = builtinFunction(
+    params = List("datetime"),
+    invoke = {
+      case List(ValDateTime(datetime))        =>
+        val timestamp = datetime.toEpochSecond
+        ValNumber(timestamp)
+      case List(ValLocalDateTime(datetime))   =>
+        val timestamp = datetime.toInstant(ZoneOffset.UTC).getEpochSecond
+        ValNumber(timestamp)
+      case _                              => ValNull
+
+    }
+  )
+
+  private def timestampMicroFunction = builtinFunction(
+    params = List.empty,
+    invoke = { case _ =>
+      val timestamp =  TimeUnit.SECONDS.toNanos(clock.getCurrentTime.toEpochSecond) +
+        TimeUnit.NANOSECONDS.toMicros(clock.getCurrentTime.getNano)
+      ValString(timestamp.toString)
+    }
+  )
+
+  private def timestampMicroFunction2 = builtinFunction(
+    params = List("datetime"),
+    invoke = {
+      case List(ValDateTime(datetime))        =>
+        val timestamp =  TimeUnit.SECONDS.toNanos(datetime.toEpochSecond) +
+          TimeUnit.NANOSECONDS.toMicros(datetime.getNano)
+        ValString(timestamp.toString)
+      case List(ValLocalDateTime(datetime))   =>
+        val timestamp = TimeUnit.SECONDS.toNanos(datetime.toInstant(ZoneOffset.UTC).getEpochSecond) +
+          TimeUnit.NANOSECONDS.toMicros(datetime.getNano)
+        ValString(timestamp.toString)
+      case _                              => ValNull
+    }
+  )
+
+  private def timestampMilliFunction = builtinFunction(
+    params = List.empty,
+    invoke = { case _ =>
+      val timestamp =  clock.getCurrentTime.toInstant.toEpochMilli
+      ValString(timestamp.toString)
+    }
+  )
+
+  private def timestampMilliFunction2 = builtinFunction(
+    params = List("datetime"),
+    invoke = {
+      case List(ValDateTime(datetime))        =>
+        val timestamp =  datetime.toInstant.toEpochMilli
+        ValString(timestamp.toString)
+      case List(ValLocalDateTime(datetime))   =>
+        val timestamp =  datetime.toInstant(ZoneOffset.UTC).toEpochMilli
+        ValString(timestamp.toString)
+      case _                              =>ValNull
+    }
+  )
+
+  private def timestampNanoFunction = builtinFunction(
+    params = List.empty,
+    invoke = { case _ =>
+      val timestamp =  TimeUnit.SECONDS.toNanos(clock.getCurrentTime.toEpochSecond) +
+        clock.getCurrentTime.getNano
+      ValString(timestamp.toString)
+    }
+  )
+
+  private def timestampNanoFunction2 = builtinFunction(
+    params = List("datetime"),
+    invoke = {
+      case List(ValDateTime(datetime))        =>
+        val timestamp =  TimeUnit.SECONDS.toNanos(datetime.toEpochSecond) +
+          datetime.getNano
+        ValString(timestamp.toString)
+      case List(ValLocalDateTime(datetime))   =>
+        val timestamp =  TimeUnit.SECONDS.toNanos(datetime.toEpochSecond(ZoneOffset.UTC)) +
+          datetime.getNano
+        ValString(timestamp.toString)
+      case _                                  => ValNull
     }
   )
 
